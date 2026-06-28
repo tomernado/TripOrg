@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import { Navigation, Bike, AlertTriangle, MapPin } from 'lucide-react';
 import { config } from './routesData';
@@ -21,13 +21,58 @@ function ChangeView({ center }: { center: [number, number] }) {
   return null;
 }
 
+function MapResizer({ trigger }: { trigger: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+  }, [trigger, map]);
+  return null;
+}
+
 export default function App() {
-  const [activeDay, setActiveDay] = useState<string>("1");
+  const [activeDay, setActiveDay] = useState<string>('1');
+  const [mapHeightPct, setMapHeightPct] = useState(50);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const contentRef = useRef<HTMLDivElement>(null);
   const currentData = config[activeDay as keyof typeof config];
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const handleNavigate = (coords: [number, number]) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${coords[0]},${coords[1]}`;
     window.open(url, '_blank');
+  };
+
+  const onDragStart = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+
+    const handleMove = (ev: MouseEvent | TouchEvent) => {
+      if (!contentRef.current) return;
+      const clientY = 'touches' in ev
+        ? (ev as TouchEvent).touches[0].clientY
+        : (ev as MouseEvent).clientY;
+      const rect = contentRef.current.getBoundingClientRect();
+      const pct = ((clientY - rect.top) / rect.height) * 100;
+      setMapHeightPct(Math.min(Math.max(pct, 15), 85));
+      ev.preventDefault();
+    };
+
+    const handleEnd = () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
   };
 
   return (
@@ -56,18 +101,20 @@ export default function App() {
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        <div className="w-full md:w-2/3 h-[50vh] md:h-full relative z-10 shadow-inner">
+      <div ref={contentRef} className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        <div
+          className="w-full md:w-2/3 md:h-full relative z-10 flex-shrink-0"
+          style={isMobile ? { height: `${mapHeightPct}%` } : undefined}
+        >
           <MapContainer
             center={currentData.routePoints[0] as [number, number]}
             zoom={9}
             className="h-full w-full"
+            attributionControl={false}
           >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='© OpenStreetMap contributors'
-            />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <ChangeView center={currentData.routePoints[0] as [number, number]} />
+            <MapResizer trigger={mapHeightPct} />
 
             <Polyline positions={currentData.routePoints as [number, number][]} color="#f59e0b" weight={5} opacity={0.8} />
 
@@ -90,7 +137,15 @@ export default function App() {
           </MapContainer>
         </div>
 
-        <div className="w-full md:w-1/3 flex flex-col bg-gray-900 overflow-y-auto p-4 space-y-4 pb-10">
+        <div
+          className="md:hidden flex items-center justify-center bg-gray-800 border-y border-gray-600 h-7 cursor-row-resize touch-none select-none flex-shrink-0 z-20"
+          onMouseDown={onDragStart}
+          onTouchStart={onDragStart}
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-500" />
+        </div>
+
+        <div className="w-full md:w-1/3 flex flex-col bg-gray-900 overflow-y-auto p-4 space-y-4 flex-1 min-h-0">
           <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-sm">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <span>{currentData.title}</span>
@@ -111,9 +166,7 @@ export default function App() {
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-xs font-bold text-red-400">טיפ בטיחות ודלק</h4>
-              <p className="text-xs text-gray-300 mt-1 leading-relaxed">
-                {currentData.safetyTip}
-              </p>
+              <p className="text-xs text-gray-300 mt-1 leading-relaxed">{currentData.safetyTip}</p>
             </div>
           </div>
 
@@ -136,7 +189,7 @@ export default function App() {
 
                 <button
                   onClick={() => handleNavigate(poi.coords as [number, number])}
-                  className="bg-amber-500 hover:bg-amber-600 p-2.5 rounded-xl text-gray-900 transition-all shrink-0 shadow-md flex-shrink-0"
+                  className="bg-amber-500 hover:bg-amber-600 p-2.5 rounded-xl text-gray-900 transition-all shrink-0 shadow-md"
                   title="פתח ב-Google Maps"
                 >
                   <Navigation className="w-4 h-4 fill-current" />
@@ -144,6 +197,10 @@ export default function App() {
               </div>
             ))}
           </div>
+
+          <p className="text-center text-xs text-gray-600 pt-2 pb-1">
+            © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> contributors
+          </p>
         </div>
       </div>
     </div>
