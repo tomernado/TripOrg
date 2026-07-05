@@ -48,6 +48,13 @@ export default function App() {
     window.open(url, '_blank');
   };
 
+  const handleOpenFullRoute = () => {
+    const points = currentData.routePoints
+      .map((p: [number, number]) => `${p[0]},${p[1]}`)
+      .join('/');
+    window.open(`https://www.google.com/maps/dir/${points}`, '_blank');
+  };
+
   const onDragStart = (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
 
@@ -160,6 +167,13 @@ export default function App() {
                 <span className="font-bold text-gray-200 text-xs line-clamp-2">{currentData.terrain}</span>
               </div>
             </div>
+            <button
+              onClick={handleOpenFullRoute}
+              className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-gray-900 text-xs font-bold py-2.5 px-3 rounded-lg transition-colors"
+            >
+              <Navigation className="w-4 h-4" />
+              פתח מסלול מלא ב-Google Maps
+            </button>
           </div>
 
           <div className="bg-red-950/40 border border-red-800/60 p-3 rounded-xl flex items-start gap-3">
