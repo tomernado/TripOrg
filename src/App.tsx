@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
 import { Navigation, Bike, AlertTriangle, MapPin } from 'lucide-react';
 import { config } from './routesData';
 import L from 'leaflet';
@@ -124,6 +124,32 @@ export default function App() {
             <MapResizer trigger={mapHeightPct} />
 
             <Polyline positions={currentData.routePoints as [number, number][]} color="#f59e0b" weight={5} opacity={0.8} />
+
+            <CircleMarker
+              center={currentData.routePoints[0] as [number, number]}
+              radius={10}
+              pathOptions={{ color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1, weight: 2 }}
+            >
+              <Popup>
+                <div className="text-right font-sans p-1" dir="rtl">
+                  <h4 className="font-bold text-gray-900 m-0">נקודת מוצא</h4>
+                  <p className="text-xs text-gray-600 mt-1">תחילת המסלול ביום {currentData.day}</p>
+                </div>
+              </Popup>
+            </CircleMarker>
+
+            <CircleMarker
+              center={currentData.routePoints[currentData.routePoints.length - 1] as [number, number]}
+              radius={10}
+              pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
+            >
+              <Popup>
+                <div className="text-right font-sans p-1" dir="rtl">
+                  <h4 className="font-bold text-gray-900 m-0">נקודת יעד</h4>
+                  <p className="text-xs text-gray-600 mt-1">סיום המסלול ביום {currentData.day}</p>
+                </div>
+              </Popup>
+            </CircleMarker>
 
             {currentData.pois.map((poi, idx) => (
               <Marker key={idx} position={poi.coords as [number, number]}>
